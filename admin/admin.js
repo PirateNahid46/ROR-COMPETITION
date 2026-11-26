@@ -15,6 +15,18 @@ import {
 const { auth, db } = window.rorFirebase;
 const ADMIN_DOMAIN = "";
 
+const RANK_SHORT = {
+  "Acting Sub Lieutenant": "A/S Lt",
+  "Sub Lieutenant": "S Lt",
+  "Lieutenant": "Lt",
+  "Lieutenant Commander": "Lt Cdr",
+  "Commander": "Cdr",
+  "Captain": "Capt",
+  "Commodore": "Cdre"
+};
+// Old submissions may hold the full rank name; show the short form
+const shortRank = (r) => RANK_SHORT[r] || r;
+
 // State
 let allQuizzes = {};
 let draftQuestions = [];
@@ -254,6 +266,92 @@ function renderDraftQuestions() {
     )
     .join("");
 }
+
+// ---- Question set JSON import / export ----
+document.getElementById("export-json-btn").addEventListener("click", () => {
+  if (draftQuestions.length === 0) {
+    alert("There are no questions to download yet.");
+    return;
+  }
+  const payload = {
+    title: quizTitleInput.value.trim(),
+    durationMinutes: parseInt(durationInput.value, 10) || 15,
+    ships: draftShips,
+    questions: draftQuestions
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  const safeName = (payload.title || "ROR_Question_Set").replace(/[^\w\-]+/g, "_");
+  a.download = `${safeName}.json`;
+  a.click();
+});
+
+const importJsonFile = document.getElementById("import-json-file");
+document.getElementById("import-json-btn").addEventListener("click", () => importJsonFile.click());
+
+importJsonFile.addEventListener("change", async () => {
+  const file = importJsonFile.files[0];
+  importJsonFile.value = "";
+  if (!file) return;
+
+  let data;
+  try {
+    data = JSON.parse(await file.text());
+  } catch (err) {
+    alert("This file is not valid JSON.");
+    return;
+  }
+
+  // Accept either a plain array of questions or an object with a "questions" array
+  const rawQuestions = Array.isArray(data) ? data : data && data.questions;
+  if (!Array.isArray(rawQuestions) || rawQuestions.length === 0) {
+    alert('No questions found. The file must contain a "questions" array.');
+    return;
+  }
+
+  const letters = ["A", "B", "C", "D"];
+  const valid = [];
+  const problems = [];
+  rawQuestions.forEach((q, i) => {
+    const text = q && typeof q.question === "string" ? q.question.trim() : "";
+    const opts = q && Array.isArray(q.options) ? q.options.map((o) => String(o).trim()) : [];
+    let idx = q ? q.correctIndex : undefined;
+    if (typeof idx === "string" && letters.includes(idx.toUpperCase())) idx = letters.indexOf(idx.toUpperCase());
+    idx = Number(idx);
+
+    if (!text || opts.length !== 4 || opts.some((o) => !o) || !Number.isInteger(idx) || idx < 0 || idx > 3) {
+      problems.push(i + 1);
+    } else {
+      valid.push({ question: text, options: opts, correctIndex: idx });
+    }
+  });
+
+  if (valid.length === 0) {
+    alert("No valid questions found. Each needs: question, 4 options, and correctIndex (0-3).");
+    return;
+  }
+
+  draftQuestions = draftQuestions.concat(valid);
+  renderDraftQuestions();
+
+  // Fill in exam details from the file only where they are still empty
+  if (!Array.isArray(data)) {
+    if (data.title && !quizTitleInput.value.trim()) quizTitleInput.value = String(data.title);
+    if (data.durationMinutes && durationInput.value === "15") durationInput.value = parseInt(data.durationMinutes, 10) || 15;
+    if (Array.isArray(data.ships)) {
+      data.ships.forEach((n) => {
+        const name = String(n).trim().toUpperCase();
+        if (name && !draftShips.includes(name)) draftShips.push(name);
+      });
+      renderShipChips();
+    }
+  }
+
+  let msg = `Imported ${valid.length} question(s).`;
+  if (problems.length) msg += `\nSkipped invalid question number(s): ${problems.join(", ")}.`;
+  alert(msg);
+});
 
 // Cancel Exam Edit Mode
 cancelEditBtn.addEventListener("click", resetExamBuilder);
@@ -533,7 +631,7 @@ function selectExamForResults(quizId) {
 
     currentSubmissions = Object.entries(data).map(([key, sub]) => ({
       pno: sub.pno || key,
-      rank: sub.rank || "—",
+      rank: shortRank(sub.rank || "—"),
       name: sub.name || "—",
       ship: sub.ship || "—",
       score: Number(sub.score) || 0,

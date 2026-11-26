@@ -7,6 +7,18 @@ import {
 
 const { db } = window.rorFirebase;
 
+const RANK_SHORT = {
+  "Acting Sub Lieutenant": "A/S Lt",
+  "Sub Lieutenant": "S Lt",
+  "Lieutenant": "Lt",
+  "Lieutenant Commander": "Lt Cdr",
+  "Commander": "Cdr",
+  "Captain": "Capt",
+  "Commodore": "Cdre"
+};
+// Old submissions may hold the full rank name; show the short form
+const shortRank = (r) => RANK_SHORT[r] || r;
+
 // State
 let activeQuizId = null;
 let currentQuiz = null;
@@ -54,6 +66,83 @@ function populateShipDropdown() {
 }
 const loginErrorEl = document.getElementById("login-error");
 
+// ---- Reload protection -------------------------------------------------
+// Browsers cannot fully forbid a reload, so we (1) block the reload shortcuts,
+// (2) show the browser's "Leave site?" warning, and (3) save the session so
+// that even if the page does reload, the competitor resumes where they were.
+const SESSION_KEY = "rorExamSession";
+let examInProgress = false;
+
+function saveSession() {
+  try {
+    sessionStorage.setItem(
+      SESSION_KEY,
+      JSON.stringify({
+        quizId: activeQuizId,
+        pno: studentPno,
+        rank: studentRank,
+        name: studentName,
+        ship: studentShip,
+        answers: selectedAnswers
+      })
+    );
+  } catch (e) {}
+}
+
+function clearSession() {
+  try {
+    sessionStorage.removeItem(SESSION_KEY);
+  } catch (e) {}
+}
+
+window.addEventListener("beforeunload", (e) => {
+  if (examInProgress && !hasSubmitted) {
+    e.preventDefault();
+    e.returnValue = "";
+  }
+});
+
+document.addEventListener("keydown", (e) => {
+  if (!examInProgress || hasSubmitted) return;
+  const key = e.key.toLowerCase();
+  if (key === "f5" || ((e.ctrlKey || e.metaKey) && key === "r")) {
+    e.preventDefault();
+  }
+});
+
+// Block pull-to-refresh on phones during the exam
+document.body.style.overscrollBehaviorY = "contain";
+
+async function tryResumeSession() {
+  let saved = null;
+  try {
+    saved = JSON.parse(sessionStorage.getItem(SESSION_KEY) || "null");
+  } catch (e) {}
+  if (!saved || saved.quizId !== activeQuizId || !currentQuiz || hasSubmitted) return;
+  if (studentPno) return; // already logged in on this page
+
+  studentPno = saved.pno;
+  studentRank = saved.rank;
+  studentName = saved.name;
+  studentShip = saved.ship;
+  studentPnoKey = studentPno.replace(/[.#$\[\]\/]/g, "_");
+  selectedAnswers = saved.answers || {};
+
+  const existingSub = await get(ref(db, `submissions/${activeQuizId}/${studentPnoKey}`));
+  if (existingSub.exists()) {
+    clearSession();
+    studentPno = "";
+    return;
+  }
+  if (Date.now() >= currentQuiz.endTime) {
+    // Time ran out while the page was reloaded: submit what was saved
+    examInProgress = true;
+    submitExam(true);
+    return;
+  }
+  startExamLifecycle();
+}
+
 // Load Active Exam Metadata
 onValue(ref(db, "activeQuizId"), async (snapshot) => {
   const newQuizId = snapshot.val();
@@ -71,6 +160,7 @@ onValue(ref(db, "activeQuizId"), async (snapshot) => {
     currentQuiz = quizSnap.val();
     examTitleBadge.textContent = currentQuiz.title;
     populateShipDropdown();
+    tryResumeSession();
   }
 });
 
@@ -110,7 +200,7 @@ document.getElementById("enter-btn").addEventListener("click", async () => {
       data.total,
       "You have already completed and submitted this exam.",
       data.pno || studentPno,
-      data.rank || studentRank,
+      shortRank(data.rank || studentRank),
       data.name || studentName,
       data.ship || studentShip
     );
@@ -127,6 +217,8 @@ document.getElementById("enter-btn").addEventListener("click", async () => {
 });
 
 function startExamLifecycle() {
+  examInProgress = true;
+  saveSession();
   switchView(waitingView);
   document.getElementById("lobby-student-pno").textContent = studentPno;
   document.getElementById("lobby-student-rank").textContent = studentRank;
@@ -190,8 +282,8 @@ function renderQuizPaper() {
       const optionsHTML = q.options
         .map(
           (optText, optIdx) => `
-          <label class="option-label" id="lbl-${qIdx}-${optIdx}">
-            <input type="radio" name="q-${qIdx}" value="${optIdx}" onchange="selectOption(${qIdx}, ${optIdx})" />
+          <label class="option-label ${selectedAnswers[qIdx] === optIdx ? "selected" : ""}" id="lbl-${qIdx}-${optIdx}">
+            <input type="radio" name="q-${qIdx}" value="${optIdx}" ${selectedAnswers[qIdx] === optIdx ? "checked" : ""} onchange="selectOption(${qIdx}, ${optIdx})" />
             <span><strong>${optionLetters[optIdx]}.</strong> ${escapeHTML(optText)}</span>
           </label>
         `
@@ -216,6 +308,7 @@ window.selectOption = (qIdx, optIdx) => {
     if (lbl) lbl.classList.toggle("selected", i === optIdx);
   }
   updateProgressText();
+  saveSession();
 };
 
 function updateProgressText() {
@@ -242,6 +335,8 @@ document.getElementById("submit-btn").addEventListener("click", () => {
 async function submitExam(isAutoSubmit) {
   if (hasSubmitted) return;
   hasSubmitted = true;
+  examInProgress = false;
+  clearSession();
   if (timerInterval) clearInterval(timerInterval);
   timerBox.classList.add("hidden");
 

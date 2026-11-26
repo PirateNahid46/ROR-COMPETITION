@@ -587,3 +587,12 @@ tbody tr:hover {
   color: var(--text-muted);
   letter-spacing: 0.02em;
 }
+
+
+/* JSON import / export */
+.json-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin: 1rem 0 0.5rem;
+}
