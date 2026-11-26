@@ -24,6 +24,10 @@ let activeQuizId = null;
 let selectedQuizIdForResults = null;
 let currentResultsCache = [];
 let listenersInitialized = false;
+let draftShips = [];
+let submissionsUnsub = null;
+let currentSubmissions = [];
+let currentShipCache = [];
 
 // Auth Elements
 const authView = document.getElementById("auth-view");
@@ -61,6 +65,11 @@ const activeStatusEl = document.getElementById("active-status");
 const resultsExamSelect = document.getElementById("results-exam-select");
 const resultsSubtitle = document.getElementById("results-subtitle");
 const resultsTbody = document.getElementById("results-tbody");
+const shipsExamSelect = document.getElementById("ships-exam-select");
+const shipsSubtitle = document.getElementById("ships-subtitle");
+const shipsTbody = document.getElementById("ships-tbody");
+const shipInput = document.getElementById("ship-input");
+const shipChipsEl = document.getElementById("ship-chips");
 
 // Tab Switching
 const tabButtons = document.querySelectorAll(".tab-btn");
@@ -69,6 +78,57 @@ const tabPanels = document.querySelectorAll(".tab-panel");
 function switchTab(tabId) {
   tabButtons.forEach((btn) => btn.classList.toggle("active", btn.dataset.tab === tabId));
   tabPanels.forEach((panel) => panel.classList.toggle("hidden", panel.id !== tabId));
+  // Results tabs use the full width of the screen
+  const activePanel = document.getElementById(tabId);
+  document.querySelector("main.container").classList.toggle("wide", !!(activePanel && activePanel.dataset.wide));
+}
+
+// Full-screen toggle for results tabs
+document.querySelectorAll(".fullscreen-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const panel = document.getElementById(btn.dataset.fsTarget);
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else if (panel && panel.requestFullscreen) {
+      panel.requestFullscreen();
+    }
+  });
+});
+document.addEventListener("fullscreenchange", () => {
+  document.querySelectorAll(".fullscreen-btn").forEach((btn) => {
+    btn.textContent = document.fullscreenElement ? "✕ Exit Full Screen" : "⛶ Full Screen";
+  });
+});
+
+// Ships / Units editor
+function addShipsFromInput() {
+  const parts = shipInput.value.split(/[\n,;]+/).map((x) => x.trim().toUpperCase()).filter(Boolean);
+  parts.forEach((name) => {
+    if (!draftShips.includes(name)) draftShips.push(name);
+  });
+  shipInput.value = "";
+  renderShipChips();
+}
+
+document.getElementById("add-ship-btn").addEventListener("click", addShipsFromInput);
+shipInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    addShipsFromInput();
+  }
+});
+
+window.removeShip = (index) => {
+  draftShips.splice(index, 1);
+  renderShipChips();
+};
+
+function renderShipChips() {
+  shipChipsEl.innerHTML = draftShips
+    .map(
+      (name, i) => `<span class="chip">${escapeHTML(name)}<button type="button" title="Remove" onclick="removeShip(${i})">×</button></span>`
+    )
+    .join("");
 }
 
 tabButtons.forEach((btn) => {
@@ -207,6 +267,9 @@ function resetExamBuilder() {
   startTimeInput.value = "";
   durationInput.value = "15";
   draftQuestions = [];
+  draftShips = [];
+  shipInput.value = "";
+  renderShipChips();
   resetQuestionForm();
   renderDraftQuestions();
 }
@@ -227,6 +290,12 @@ saveQuizBtn.addEventListener("click", async () => {
     return;
   }
 
+  addShipsFromInput(); // include any ship typed but not yet added
+  if (draftShips.length === 0) {
+    alert("Please add at least one participating ship / unit.");
+    return;
+  }
+
   const startTimestamp = new Date(startTimeVal).getTime();
   const endTimestamp = startTimestamp + durationMinutes * 60 * 1000;
 
@@ -237,6 +306,7 @@ saveQuizBtn.addEventListener("click", async () => {
       endTime: endTimestamp,
       durationMinutes,
       questions: draftQuestions,
+      ships: draftShips,
       updatedAt: Date.now()
     });
     alert("Exam updated successfully!");
@@ -250,6 +320,7 @@ saveQuizBtn.addEventListener("click", async () => {
       endTime: endTimestamp,
       durationMinutes,
       questions: draftQuestions,
+      ships: draftShips,
       createdAt: Date.now()
     });
     await set(ref(db, "activeQuizId"), newQuizRef.key);
@@ -273,6 +344,8 @@ window.loadExamForEdit = (id) => {
   startTimeInput.value = toLocalDateTimeInput(quiz.startTime);
   durationInput.value = quiz.durationMinutes;
   draftQuestions = JSON.parse(JSON.stringify(quiz.questions || []));
+  draftShips = Array.isArray(quiz.ships) ? [...quiz.ships] : Object.values(quiz.ships || {});
+  renderShipChips();
 
   resetQuestionForm();
   renderDraftQuestions();
@@ -332,6 +405,7 @@ function renderExamCards() {
               <div><strong>Start:</strong> ${startStr}</div>
               <div><strong>Ends:</strong> ${endStr} (${quiz.durationMinutes} mins)</div>
               <div><strong>Questions:</strong> ${quiz.questions ? quiz.questions.length : 0} MCQs</div>
+              <div><strong>Ships / Units:</strong> ${shipListOf(quiz).length}</div>
             </div>
           </div>
 
@@ -410,78 +484,169 @@ window.deleteExam = async (id) => {
 function populateResultsSelector() {
   const entries = Object.entries(allQuizzes).reverse();
   if (entries.length === 0) {
-    resultsExamSelect.innerHTML = `<option value="">No exams available</option>`;
+    resultsExamSelect.innerHTML = shipsExamSelect.innerHTML = `<option value="">No exams available</option>`;
     return;
   }
 
-  resultsExamSelect.innerHTML = entries
+  resultsExamSelect.innerHTML = shipsExamSelect.innerHTML = entries
     .map(([id, quiz]) => `<option value="${id}">${escapeHTML(quiz.title)}</option>`)
     .join("");
 
   if (selectedQuizIdForResults && allQuizzes[selectedQuizIdForResults]) {
-    resultsExamSelect.value = selectedQuizIdForResults;
+    resultsExamSelect.value = shipsExamSelect.value = selectedQuizIdForResults;
+    renderResultsTables(); // exam data (e.g. ship list) may have changed
   } else {
     const defaultId = activeQuizId && allQuizzes[activeQuizId] ? activeQuizId : entries[0][0];
     selectExamForResults(defaultId);
   }
 }
 
-resultsExamSelect.addEventListener("change", (e) => {
-  if (e.target.value) {
-    selectExamForResults(e.target.value);
-  }
-});
+[resultsExamSelect, shipsExamSelect].forEach((sel) =>
+  sel.addEventListener("change", (e) => {
+    if (e.target.value) {
+      selectExamForResults(e.target.value);
+    }
+  })
+);
 
 function selectExamForResults(quizId) {
   selectedQuizIdForResults = quizId;
   resultsExamSelect.value = quizId;
+  shipsExamSelect.value = quizId;
   const quiz = allQuizzes[quizId];
   resultsSubtitle.textContent = quiz
     ? `Showing results for: ${quiz.title}`
     : "Live competitor scores";
+  shipsSubtitle.textContent = quiz
+    ? `Combined scores of all competitors by ship for: ${quiz.title}`
+    : "Combined scores of all competitors, grouped by ship / unit";
 
-  onValue(ref(db, `submissions/${quizId}`), (snapshot) => {
+  // Stop listening to the previously selected exam
+  if (submissionsUnsub) {
+    submissionsUnsub();
+    submissionsUnsub = null;
+  }
+
+  submissionsUnsub = onValue(ref(db, `submissions/${quizId}`), (snapshot) => {
     if (selectedQuizIdForResults !== quizId) return;
-    const data = snapshot.val();
-    if (!data) {
-      currentResultsCache = [];
-      resultsTbody.innerHTML = `<tr><td colspan="8" class="muted">No submissions yet for this exam.</td></tr>`;
-      return;
-    }
+    const data = snapshot.val() || {};
 
-    const rows = Object.entries(data).map(([key, sub]) => ({
+    currentSubmissions = Object.entries(data).map(([key, sub]) => ({
       pno: sub.pno || key,
       rank: sub.rank || "—",
       name: sub.name || "—",
       ship: sub.ship || "—",
-      score: sub.score,
-      total: sub.total,
+      score: Number(sub.score) || 0,
+      total: Number(sub.total) || 0,
       submittedAt: sub.submittedAt
     }));
-
-    rows.sort((a, b) => b.score - a.score || a.submittedAt - b.submittedAt);
-    currentResultsCache = rows;
-
-    resultsTbody.innerHTML = rows
-      .map((r, idx) => {
-        const pct = ((r.score / r.total) * 100).toFixed(1);
-        const timeStr = new Date(r.submittedAt).toLocaleTimeString();
-        return `
-          <tr>
-            <td><strong>#${idx + 1}</strong></td>
-            <td><strong>${escapeHTML(r.pno)}</strong></td>
-            <td>${escapeHTML(r.rank)}</td>
-            <td>${escapeHTML(r.name)}</td>
-            <td>${escapeHTML(r.ship)}</td>
-            <td><strong>${r.score} / ${r.total}</strong></td>
-            <td>${pct}%</td>
-            <td>${timeStr}</td>
-          </tr>
-        `;
-      })
-      .join("");
+    currentSubmissions.sort((a, b) => b.score - a.score || a.submittedAt - b.submittedAt);
+    renderResultsTables();
   });
 }
+
+function shipListOf(quiz) {
+  if (!quiz || !quiz.ships) return [];
+  return Array.isArray(quiz.ships) ? quiz.ships : Object.values(quiz.ships);
+}
+
+function renderResultsTables() {
+  renderIndividualResults();
+  renderShipResults();
+}
+
+function renderIndividualResults() {
+  const rows = currentSubmissions;
+  currentResultsCache = rows;
+  if (rows.length === 0) {
+    resultsTbody.innerHTML = `<tr><td colspan="8" class="muted">No submissions yet for this exam.</td></tr>`;
+    return;
+  }
+
+  resultsTbody.innerHTML = rows
+    .map((r, idx) => {
+      const pct = r.total ? ((r.score / r.total) * 100).toFixed(1) : "0.0";
+      const timeStr = new Date(r.submittedAt).toLocaleTimeString();
+      return `
+        <tr>
+          <td><strong>#${idx + 1}</strong></td>
+          <td><strong>${escapeHTML(r.pno)}</strong></td>
+          <td>${escapeHTML(r.rank)}</td>
+          <td>${escapeHTML(r.name)}</td>
+          <td>${escapeHTML(r.ship)}</td>
+          <td><strong>${r.score} / ${r.total}</strong></td>
+          <td>${pct}%</td>
+          <td>${timeStr}</td>
+        </tr>
+      `;
+    })
+    .join("");
+}
+
+// Ship-wise aggregation: adds up the scores of every competitor of a ship
+function computeShipStats() {
+  const quiz = allQuizzes[selectedQuizIdForResults];
+  const map = new Map();
+  // Listed ships first, so ships with no submissions still appear (with 0)
+  shipListOf(quiz).forEach((name) => map.set(name, { ship: name, count: 0, score: 0, max: 0 }));
+
+  currentSubmissions.forEach((r) => {
+    if (!map.has(r.ship)) map.set(r.ship, { ship: r.ship, count: 0, score: 0, max: 0 });
+    const s = map.get(r.ship);
+    s.count += 1;
+    s.score += r.score;
+    s.max += r.total;
+  });
+
+  const list = [...map.values()].map((s) => ({
+    ...s,
+    avg: s.count ? s.score / s.count : 0,
+    pct: s.max ? (s.score / s.max) * 100 : 0
+  }));
+  list.sort((a, b) => b.score - a.score || b.avg - a.avg || a.ship.localeCompare(b.ship));
+  return list;
+}
+
+function renderShipResults() {
+  const list = computeShipStats();
+  currentShipCache = list;
+  if (list.length === 0) {
+    shipsTbody.innerHTML = `<tr><td colspan="7" class="muted">No ships or submissions yet for this exam.</td></tr>`;
+    return;
+  }
+
+  shipsTbody.innerHTML = list
+    .map(
+      (s, idx) => `
+        <tr>
+          <td><strong>#${idx + 1}</strong></td>
+          <td><strong>${escapeHTML(s.ship)}</strong></td>
+          <td>${s.count}</td>
+          <td><strong>${s.score}</strong></td>
+          <td>${s.max}</td>
+          <td>${s.avg.toFixed(2)}</td>
+          <td>${s.pct.toFixed(1)}%</td>
+        </tr>
+      `
+    )
+    .join("");
+}
+
+document.getElementById("export-ships-csv-btn").addEventListener("click", () => {
+  if (currentShipCache.length === 0) {
+    alert("No results available to export.");
+    return;
+  }
+  const headers = ["Position,Ship,Competitors,Total Score,Max Possible,Average,Percentage"];
+  const lines = currentShipCache.map(
+    (s, i) => `${i + 1},"${s.ship}",${s.count},${s.score},${s.max},${s.avg.toFixed(2)},${s.pct.toFixed(1)}%`
+  );
+  const blob = new Blob([headers.concat(lines).join("\n")], { type: "text/csv" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `ROR_Quiz_Ship_Results_${selectedQuizIdForResults}.csv`;
+  a.click();
+});
 
 // Export CSV
 document.getElementById("export-csv-btn").addEventListener("click", () => {

@@ -318,3 +318,12 @@ select:focus {
 .hidden {
   display: none !important;
 }
+
+/* Footer credit */
+.site-footer {
+  text-align: center;
+  padding: 1rem;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+}

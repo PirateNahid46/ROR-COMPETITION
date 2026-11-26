@@ -32,7 +32,26 @@ const timeRemainingEl = document.getElementById("time-remaining");
 const studentPnoInput = document.getElementById("student-pno");
 const studentRankSelect = document.getElementById("student-rank");
 const studentNameInput = document.getElementById("student-name");
-const studentShipInput = document.getElementById("student-ship");
+const studentShipSelect = document.getElementById("student-ship");
+const studentShipText = document.getElementById("student-ship-text");
+
+// Fill the ship dropdown from the list the admin added to the exam
+function populateShipDropdown() {
+  const raw = currentQuiz && currentQuiz.ships;
+  const ships = !raw ? [] : Array.isArray(raw) ? raw : Object.values(raw);
+  const previous = studentShipSelect.value;
+
+  studentShipSelect.innerHTML =
+    `<option value="" disabled selected>Select your Ship / Unit</option>` +
+    ships.map((s) => `<option value="${escapeHTML(s)}">${escapeHTML(s)}</option>`).join("");
+
+  if (previous && ships.includes(previous)) studentShipSelect.value = previous;
+
+  // No list on this exam (older exams): fall back to typing the name
+  const useText = ships.length === 0;
+  studentShipSelect.classList.toggle("hidden", useText);
+  studentShipText.classList.toggle("hidden", !useText);
+}
 const loginErrorEl = document.getElementById("login-error");
 
 // Load Active Exam Metadata
@@ -41,6 +60,7 @@ onValue(ref(db, "activeQuizId"), async (snapshot) => {
   if (!newQuizId) {
     activeQuizId = null;
     currentQuiz = null;
+    populateShipDropdown();
     examTitleBadge.textContent = "No Scheduled Exam";
     return;
   }
@@ -50,6 +70,7 @@ onValue(ref(db, "activeQuizId"), async (snapshot) => {
   if (quizSnap.exists()) {
     currentQuiz = quizSnap.val();
     examTitleBadge.textContent = currentQuiz.title;
+    populateShipDropdown();
   }
 });
 
@@ -59,10 +80,12 @@ document.getElementById("enter-btn").addEventListener("click", async () => {
   const rawPno = studentPnoInput.value.trim().toUpperCase();
   const rawRank = studentRankSelect.value;
   const rawName = studentNameInput.value.trim();
-  const rawShip = studentShipInput.value.trim().toUpperCase();
+  const rawShip = (studentShipSelect.classList.contains("hidden")
+    ? studentShipText.value.trim().toUpperCase()
+    : studentShipSelect.value);
 
   if (!rawPno || !rawRank || !rawName || !rawShip) {
-    loginErrorEl.textContent = "Please fill in P NO, Rank, Name, and Name of Ship.";
+    loginErrorEl.textContent = "Please fill in P NO, Rank, Name, and select your Ship.";
     return;
   }
 

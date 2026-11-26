@@ -64,7 +64,11 @@
 
       <div class="form-group">
         <label for="student-ship">Name of Ship</label>
-        <input type="text" id="student-ship" placeholder="e.g., BNS DHALESHWARI" autocomplete="off" />
+        <select id="student-ship">
+          <option value="" disabled selected>Select your Ship / Unit</option>
+        </select>
+        <!-- Fallback for older exams that have no ship list -->
+        <input type="text" id="student-ship-text" class="hidden" placeholder="e.g., BNS DHALESHWARI" autocomplete="off" />
       </div>
 
       <button id="enter-btn" class="btn primary full-width">Enter Exam Lobby</button>
@@ -120,6 +124,7 @@
       <p id="result-note" class="subtitle"></p>
     </section>
   </main>
+  <footer class="site-footer">Developed by: S Lt Nahid, 2023A</footer>
   <script type="module" src="firebase-config.js"></script>
   <script type="module" src="student.js"></script>
 </body>
