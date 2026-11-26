@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ROR Quiz — Admin Control Center</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Admin Sign-In Screen -->
+  <section id="auth-view" class="auth-wrapper">
+    <div class="card auth-card">
+      <div class="auth-header">
+        <span class="badge">ADMIN PORTAL</span>
+        <h1>⚓ ROR Quiz</h1>
+      </div>
+      <p class="subtitle">Sign in with your administrator credentials to manage Rules of the Road assessments.</p>
+
+      <form id="login-form">
+        <div class="form-group">
+          <label for="admin-id">Admin ID (Email)</label>
+          <input type="text" id="admin-id" placeholder="admin@rorquiz.com" required autocomplete="username" />
+        </div>
+        <div class="form-group">
+          <label for="admin-password">Password</label>
+          <input type="password" id="admin-password" placeholder="••••••••" required autocomplete="current-password" />
+        </div>
+        <button type="submit" id="login-btn" class="btn primary full-width">Sign In</button>
+        <p id="auth-error" class="error-text"></p>
+      </form>
+    </div>
+  </section>
+
+  <!-- Admin Dashboard -->
+  <div id="dashboard-view" class="hidden">
+    <header class="topbar">
+      <div class="brand">
+        <span class="badge">ADMIN</span>
+        <h1>⚓ ROR Quiz — Control Center</h1>
+      </div>
+      <div class="topbar-right">
+        <div id="active-status" class="status-pill">No Active Exam</div>
+        <span id="admin-user-label" class="user-label"></span>
+        <button id="logout-btn" class="btn small outline-light">Sign Out</button>
+      </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="tab-bar">
+      <div class="tab-bar-inner">
+        <button class="tab-btn active" data-tab="tab-builder" id="nav-tab-builder">Create / Edit Exam</button>
+        <button class="tab-btn" data-tab="tab-start" id="nav-tab-start">Start Exam</button>
+        <button class="tab-btn" data-tab="tab-results" id="nav-tab-results">Results & Leaderboard</button>
+      </div>
+    </nav>
+
+    <main class="container">
+      <!-- TAB 1: Create / Edit Exam -->
+      <section id="tab-builder" class="tab-panel">
+        <div class="card">
+          <div class="card-header-row">
+            <h2 id="builder-heading">Create New ROR Exam</h2>
+            <button id="cancel-edit-btn" class="btn small danger-outline hidden">Cancel Edit (New Exam)</button>
+          </div>
+
+          <div class="grid-3">
+            <div class="form-group">
+              <label for="quiz-title">Exam Title</label>
+              <input type="text" id="quiz-title" placeholder="e.g., COLREGs Fleet Assessment 01" />
+            </div>
+            <div class="form-group">
+              <label for="start-time">Start Date & Time</label>
+              <input type="datetime-local" id="start-time" />
+            </div>
+            <div class="form-group">
+              <label for="duration">Duration (Minutes)</label>
+              <input type="number" id="duration" min="1" max="240" value="15" />
+            </div>
+          </div>
+
+          <hr />
+
+          <div class="card-header-row">
+            <h3 id="question-form-heading">Add Question (4-Option MCQ)</h3>
+            <button id="cancel-q-edit-btn" class="btn small secondary hidden">Cancel Question Edit</button>
+          </div>
+
+          <div class="form-group">
+            <label for="q-text">Question Text</label>
+            <textarea id="q-text" rows="2" placeholder="e.g., Under Rule 14, when two power-driven vessels are meeting on reciprocal courses..."></textarea>
+          </div>
+
+          <div class="grid-2">
+            <div class="form-group">
+              <label for="opt-0">Option A</label>
+              <input type="text" id="opt-0" placeholder="Enter Option A" />
+            </div>
+            <div class="form-group">
+              <label for="opt-1">Option B</label>
+              <input type="text" id="opt-1" placeholder="Enter Option B" />
+            </div>
+            <div class="form-group">
+              <label for="opt-2">Option C</label>
+              <input type="text" id="opt-2" placeholder="Enter Option C" />
+            </div>
+            <div class="form-group">
+              <label for="opt-3">Option D</label>
+              <input type="text" id="opt-3" placeholder="Enter Option D" />
+            </div>
+          </div>
+
+          <div class="row-actions">
+            <div class="form-group inline">
+              <label for="correct-opt">Correct Answer:</label>
+              <select id="correct-opt">
+                <option value="0">Option A</option>
+                <option value="1">Option B</option>
+                <option value="2">Option C</option>
+                <option value="3">Option D</option>
+              </select>
+            </div>
+            <button id="add-question-btn" class="btn secondary">+ Add Question to Exam</button>
+          </div>
+
+          <!-- Draft Question List -->
+          <div id="draft-list" class="draft-list"></div>
+
+          <button id="save-quiz-btn" class="btn primary full-width">Publish & Set as Active Exam</button>
+        </div>
+      </section>
+
+      <!-- TAB 2: Start Exam & Manage Exams -->
+      <section id="tab-start" class="tab-panel hidden">
+        <div class="card">
+          <div class="card-header-row">
+            <h2>Scheduled & Saved Exams</h2>
+            <span class="muted-text">Configure start times, launch exams, or edit questions</span>
+          </div>
+          <div id="quizzes-list" class="exam-grid">
+            <p class="muted">Loading exams...</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 3: Results & Leaderboard -->
+      <section id="tab-results" class="tab-panel hidden">
+        <div class="card">
+          <div class="card-header-row wrap">
+            <div>
+              <h2>Live Submissions & Leaderboard</h2>
+              <p id="results-subtitle" class="muted-text">Select an exam to view results</p>
+            </div>
+            <div class="results-controls">
+              <select id="results-exam-select" aria-label="Select Exam for Results"></select>
+              <button id="export-csv-btn" class="btn primary small-pad">Export CSV</button>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Pos</th>
+                  <th>P NO</th>
+                  <th>Rank</th>
+                  <th>Name</th>
+                  <th>Ship</th>
+                  <th>Score</th>
+                  <th>Percentage</th>
+                  <th>Submitted At</th>
+                </tr>
+              </thead>
+              <tbody id="results-tbody">
+                <tr><td colspan="8" class="muted">No exam selected.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script type="module" src="firebase-config.js"></script>
+  <script type="module" src="admin.js"></script>
+</body>
+</html>

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ROR Quiz - Competitor Portal</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <h1>⚓ ROR Quiz</h1>
+      <span id="exam-title-badge" class="exam-badge">Loading Exam...</span>
+    </div>
+    <div id="timer-box" class="timer-box hidden">
+      Time Remaining: <span id="time-remaining">--:--</span>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- 1. Login Screen -->
+    <section id="login-view" class="card center-card">
+      <h2>Competitor Entry</h2>
+      <p class="subtitle">Enter your service details to join the Rules of the Road assessment.</p>
+      
+      <div class="form-group">
+        <label for="student-pno">P NO</label>
+        <input type="text" id="student-pno" placeholder="e.g., P-1234" autocomplete="off" />
+      </div>
+
+      <div class="form-group">
+        <label for="student-rank">Rank</label>
+        <select id="student-rank">
+          <option value="" disabled selected>Select your Rank</option>
+          <optgroup label="Officers">
+            <option value="Acting Sub Lieutenant">Acting Sub Lieutenant</option>
+            <option value="Sub Lieutenant">Sub Lieutenant</option>
+            <option value="Lieutenant">Lieutenant</option>
+            <option value="Lieutenant Commander">Lieutenant Commander</option>
+            <option value="Commander">Commander</option>
+            <option value="Captain">Captain</option>
+            <option value="Commodore">Commodore</option>
+          </optgroup>
+          <optgroup label="Cadets / Midshipmen">
+            <option value="Midshipman">Midshipman</option>
+            <option value="Officer Cadet">Officer Cadet</option>
+          </optgroup>
+          <optgroup label="Sailors">
+            <option value="Master Chief Petty Officer (MCPO)">Master Chief Petty Officer (MCPO)</option>
+            <option value="Senior Chief Petty Officer (SCPO)">Senior Chief Petty Officer (SCPO)</option>
+            <option value="Chief Petty Officer (CPO)">Chief Petty Officer (CPO)</option>
+            <option value="Petty Officer (PO)">Petty Officer (PO)</option>
+            <option value="Leading Seaman (LS)">Leading Seaman (LS)</option>
+            <option value="Able Seaman (AB)">Able Seaman (AB)</option>
+            <option value="Ordinary Seaman (OD)">Ordinary Seaman (OD)</option>
+          </optgroup>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="student-name">Name</label>
+        <input type="text" id="student-name" placeholder="Enter your full name" autocomplete="name" />
+      </div>
+
+      <div class="form-group">
+        <label for="student-ship">Name of Ship</label>
+        <input type="text" id="student-ship" placeholder="e.g., BNS DHALESHWARI" autocomplete="off" />
+      </div>
+
+      <button id="enter-btn" class="btn primary full-width">Enter Exam Lobby</button>
+      <p id="login-error" class="error-text"></p>
+    </section>
+
+    <!-- 2. Waiting Room (Before Start Time) -->
+    <section id="waiting-view" class="card center-card hidden">
+      <h2>Exam Lobby</h2>
+      <p>
+        P NO: <strong id="lobby-student-pno"></strong> |
+        <strong id="lobby-student-rank"></strong> <strong id="lobby-student-name"></strong>
+      </p>
+      <p class="ship-tag">Ship: <strong id="lobby-student-ship"></strong></p>
+      <p class="subtitle" id="lobby-exam-info"></p>
+      <div class="countdown-panel">
+        <span>Exam Starts In</span>
+        <div id="start-countdown" class="big-clock">00:00:00</div>
+      </div>
+      <p class="muted">The question paper will open automatically when the timer reaches zero.</p>
+    </section>
+
+    <!-- 3. Active Quiz Screen -->
+    <section id="quiz-view" class="hidden">
+      <div class="quiz-meta-bar">
+        <span>
+          <strong id="quiz-student-pno"></strong> •
+          <strong id="quiz-student-rank"></strong> <strong id="quiz-student-name"></strong>
+          (<span id="quiz-student-ship"></span>)
+        </span>
+        <span id="progress-text">Answered: 0 / 0</span>
+      </div>
+
+      <div id="questions-container" class="questions-list"></div>
+
+      <div class="submit-bar">
+        <button id="submit-btn" class="btn primary">Submit Answers Now</button>
+      </div>
+    </section>
+
+    <!-- 4. Result / Completion Screen -->
+    <section id="result-view" class="card center-card hidden">
+      <h2 id="result-heading">Exam Submitted</h2>
+      <p>
+        P NO: <strong id="result-student-pno"></strong> |
+        <strong id="result-student-rank"></strong> <strong id="result-student-name"></strong>
+      </p>
+      <p class="ship-tag">Ship: <strong id="result-student-ship"></strong></p>
+      <div class="score-circle">
+        <span id="score-display">0 / 0</span>
+        <small id="percent-display">0%</small>
+      </div>
+      <p id="result-note" class="subtitle"></p>
+    </section>
+  </main>
+  <script type="module" src="firebase-config.js"></script>
+  <script type="module" src="student.js"></script>
+</body>
+</html>
