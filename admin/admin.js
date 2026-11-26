@@ -16,7 +16,7 @@ const { auth, db } = window.rorFirebase;
 const ADMIN_DOMAIN = "";
 
 const RANK_SHORT = {
-  "Acting Sub Lieutenant": "A/S Lt",
+  "Acting Sub Lieutenant": "Ag S Lt",
   "Sub Lieutenant": "S Lt",
   "Lieutenant": "Lt",
   "Lieutenant Commander": "Lt Cdr",

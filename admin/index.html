@@ -48,7 +48,7 @@
     <!-- Navigation Tabs -->
     <nav class="tab-bar">
       <div class="tab-bar-inner">
-        <button class="tab-btn active" data-tab="tab-builder" id="nav-tab-builder">Create / Edit Exam</button>
+        <button class="tab-btn active" data-tab="tab-builder" id="nav-tab-builder">Create / Edit Quiz</button>
         <button class="tab-btn" data-tab="tab-start" id="nav-tab-start">Start Exam</button>
         <button class="tab-btn" data-tab="tab-results" id="nav-tab-results">Results & Leaderboard</button>
         <button class="tab-btn" data-tab="tab-ships" id="nav-tab-ships">Results by Ship</button>
@@ -60,8 +60,8 @@
       <section id="tab-builder" class="tab-panel">
         <div class="card">
           <div class="card-header-row">
-            <h2 id="builder-heading">Create New ROR Exam</h2>
-            <button id="cancel-edit-btn" class="btn small danger-outline hidden">Cancel Edit (New Exam)</button>
+            <h2 id="builder-heading">Create New ROR Quiz</h2>
+            <button id="cancel-edit-btn" class="btn small danger-outline hidden">Cancel Edit</button>
           </div>
 
           <div class="grid-3">
@@ -87,7 +87,6 @@
               <input type="text" id="ship-input" placeholder="e.g., BNS DHALESHWARI (press Enter to add)" autocomplete="off" />
               <button type="button" id="add-ship-btn" class="btn secondary">+ Add Ship / Unit</button>
             </div>
-            <small class="muted-text">Competitors will pick their ship from this list. Tip: paste several names separated by commas.</small>
             <div id="ship-chips" class="chip-list"></div>
           </div>
 

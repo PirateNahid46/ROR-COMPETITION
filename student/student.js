@@ -8,7 +8,7 @@ import {
 const { db } = window.rorFirebase;
 
 const RANK_SHORT = {
-  "Acting Sub Lieutenant": "A/S Lt",
+  "Acting Sub Lieutenant": "Ag S Lt",
   "Sub Lieutenant": "S Lt",
   "Lieutenant": "Lt",
   "Lieutenant Commander": "Lt Cdr",
@@ -202,7 +202,8 @@ document.getElementById("enter-btn").addEventListener("click", async () => {
       data.pno || studentPno,
       shortRank(data.rank || studentRank),
       data.name || studentName,
-      data.ship || studentShip
+      data.ship || studentShip,
+      data.answers
     );
     return;
   }
@@ -369,10 +370,56 @@ async function submitExam(isAutoSubmit) {
     ? "Time expired! Your answers were automatically submitted."
     : "Your answers have been recorded successfully.";
 
-  showResultScreen(score, total, note, studentPno, studentRank, studentName, studentShip);
+  showResultScreen(score, total, note, studentPno, studentRank, studentName, studentShip, selectedAnswers);
 }
 
-function showResultScreen(score, total, note, pnoValue, rankValue, nameValue, shipValue) {
+function renderReview(answers) {
+  const section = document.getElementById("review-section");
+  const list = document.getElementById("review-list");
+  const resultCard = document.getElementById("result-view");
+  const questions = (currentQuiz && currentQuiz.questions) || [];
+  const letters = ["A", "B", "C", "D"];
+  // Firebase may return saved answers as an array (with gaps) or an object
+  const ans = answers || {};
+
+  if (questions.length === 0) {
+    section.classList.add("hidden");
+    resultCard.classList.remove("has-review");
+    return;
+  }
+
+  const wrong = [];
+  questions.forEach((q, i) => {
+    const picked = ans[i];
+    if (picked !== q.correctIndex) wrong.push({ q, i, picked });
+  });
+
+  section.classList.remove("hidden");
+  resultCard.classList.add("has-review");
+
+  if (wrong.length === 0) {
+    list.innerHTML = `<p class="review-perfect">Perfect score — no wrong answers!</p>`;
+    return;
+  }
+
+  document.getElementById("review-heading").textContent = `Review: ${wrong.length} Wrong / Unanswered`;
+  list.innerHTML = wrong
+    .map(({ q, i, picked }) => {
+      const pickedText =
+        picked === undefined || picked === null
+          ? "Not answered"
+          : `${letters[picked]}. ${escapeHTML(q.options[picked])}`;
+      return `
+        <div class="review-item">
+          <div class="review-q">${i + 1}. ${escapeHTML(q.question)}</div>
+          <div class="review-line wrong"><strong>Your answer:</strong> ${pickedText}</div>
+          <div class="review-line right"><strong>Correct answer:</strong> ${letters[q.correctIndex]}. ${escapeHTML(q.options[q.correctIndex])}</div>
+        </div>`;
+    })
+    .join("");
+}
+
+function showResultScreen(score, total, note, pnoValue, rankValue, nameValue, shipValue, answers) {
   switchView(resultView);
   timerBox.classList.add("hidden");
   document.getElementById("result-student-pno").textContent = pnoValue;
@@ -383,6 +430,7 @@ function showResultScreen(score, total, note, pnoValue, rankValue, nameValue, sh
   const pct = total > 0 ? ((score / total) * 100).toFixed(1) : 0;
   document.getElementById("percent-display").textContent = `${pct}%`;
   document.getElementById("result-note").textContent = note;
+  renderReview(answers);
 }
 
 function switchView(target) {

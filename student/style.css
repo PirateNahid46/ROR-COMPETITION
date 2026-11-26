@@ -327,3 +327,59 @@ select:focus {
   color: var(--text-muted);
   letter-spacing: 0.02em;
 }
+
+
+/* Result screen: wrong-answer review */
+#result-view.has-review {
+  max-width: 760px;
+}
+
+.review-section {
+  margin-top: 1.5rem;
+  text-align: left;
+  border-top: 1px solid #d8e1eb;
+  padding-top: 1.25rem;
+}
+
+.review-section h3 {
+  color: var(--navy-900);
+  margin-bottom: 0.75rem;
+  text-align: center;
+}
+
+.review-item {
+  border: 1px solid #d8e1eb;
+  border-left: 4px solid var(--danger);
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+  margin-bottom: 0.75rem;
+  background: #fff;
+}
+
+.review-q {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.review-line {
+  font-size: 0.92rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 6px;
+  margin-top: 0.3rem;
+}
+
+.review-line.wrong {
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.review-line.right {
+  background: #e6f7f5;
+  color: #0f5f58;
+}
+
+.review-perfect {
+  text-align: center;
+  color: var(--success);
+  font-weight: 600;
+}
